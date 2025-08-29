@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semua Barang</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Semua Barang</h1>
+            <div class="header-controls">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Cari barang...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+        </header>
+        
+        <main class="app-main">
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-actions">
+                        <button class="btn btn-sm btn-refresh" id="refresh-btn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <table id="items-table">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Nama Barang</th>
+                            <th>Harga Jual</th>
+                            <th>Harga (Modal)</th>
+                            <th>Stok</th>
+                            <th>Barcode</th>
+                            <th>InfoBarang</th>
+                            <th>Options</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr class="loading-row">
+                            <td colspan="8">
+                                <div class="loading-spinner">
+                                    <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <aside class="app-sidebar">
+                <button class="btn btn-primary" id="add-item-btn">
+                    <i class="fas fa-plus"></i> Tambah Barang
+                </button>
+                <button class="btn btn-secondary">
+                    <i class="fas fa-question-circle"></i> Help ?!
+                </button>
+                <div class="totals-card">
+                    <div class="total-item">
+                        <span>Total Harga Jual</span>
+                        <strong id="total-sell">0,00</strong>
+                    </div>
+                    <div class="total-item">
+                        <span>Total Harga Modal</span>
+                        <strong id="total-cost">0,00</strong>
+                    </div>
+                    <div class="total-item">
+                        <span>Jumlah Barang</span>
+                        <strong id="total-items">0</strong>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modal untuk Tambah/Edit Barang -->
+    <div class="modal" id="item-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Tambah Barang Baru</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="item-form">
+                    <input type="hidden" id="item-id">
+                    <div class="form-group">
+                        <label for="item-name">Nama Barang</label>
+                        <input type="text" id="item-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-sell-price">Harga Jual</label>
+                        <input type="number" id="item-sell-price" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-cost-price">Harga Modal</label>
+                        <input type="number" id="item-cost-price" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-stock">Stok</label>
+                        <input type="number" id="item-stock" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-barcode">Barcode</label>
+                        <input type="text" id="item-barcode">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-info">Info Barang</label>
+                        <textarea id="item-info" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-btn">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h2>Konfirmasi Hapus</h2>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus barang "<span id="item-to-delete"></span>"?</p>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-delete">Batal</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete">Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* General Body and Font Styles */
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        /* Main Application Container */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1400px;
+            margin: auto;
+            background-color: #ffffff;
+            border-left: 1px solid #dcdcdc;
+            border-right: 1px solid #dcdcdc;
+        }
+
+        /* Header */
+        .app-header {
+            padding: 10px 20px;
+            border-bottom: 1px solid #dcdcdc;
+            background-color: #fafafa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .app-header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box input {
+            padding: 8px 12px 8px 35px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 250px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            color: #888;
+        }
+
+        /* Main Content Area Layout */
+        .app-main {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .table-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 800px; /* Mencegah tabel menjadi terlalu sempit */
+        }
+
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #f7f7f7;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Specific Column Alignments */
+        th:nth-child(3), td:nth-child(3),
+        th:nth-child(4), td:nth-child(4),
+        th:nth-child(5), td:nth-child(5) {
+            text-align: right;
+        }
+        
+        th:first-child, td:first-child,
+        th:last-child, td:last-child {
+            text-align: center;
+        }
+
+        /* Loading spinner */
+        .loading-row td {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .error-row td {
+            text-align: center;
+            padding: 30px;
+            color: #dc3545;
+            background-color: #fff5f5;
+        }
+
+        /* Sidebar */
+        .app-sidebar {
+            width: 250px;
+            min-width: 250px;
+            background-color: #eaf4ff;
+            border-left: 1px solid #dcdcdc;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .btn-primary:hover {
+            background-color: #e0a800;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-refresh {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+
+        .btn-refresh:hover {
+            background-color: #e2e6ea;
+        }
+
+        .options-btn {
+            background-color: #ffc107;
+            border: 1px solid #d6a801;
+            color: #333;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .options-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: none;
+        }
+
+        .options-menu button {
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .options-menu button:hover {
+            background-color: #f5f5f5;
+        }
+
+        .totals-card {
+            border-top: 1px solid #cce1f7;
+            padding-top: 15px;
+        }
+
+        .total-item {
+            display: flex;
+            flex-direction: flex;
+            margin-bottom: 15px;
+        }
+        
+        .total-item span {
+            font-size: 0.9rem;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .total-item strong {
+            font-size: 1.1rem;
+            color: #000;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .confirm-modal {
+            width: 400px;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .close {
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* ========================================= */
+        /* STYLE RESPONSIVE MOBILE         */
+        /* ========================================= */
+        @media screen and (max-width: 768px) {
+            .app-container {
+                height: auto; /* Biarkan tinggi menyesuaikan konten */
+                min-height: 100vh;
+            }
+            
+            .app-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .search-box input {
+                width: 100%;
+            }
+            
+            .app-main {
+                flex-direction: column; /* Ubah layout utama menjadi kolom */
+                overflow: visible;
+            }
+
+            .app-sidebar {
+                width: auto; /* Lebar sidebar otomatis */
+                border-left: none; /* Hapus border kiri */
+                border-top: 1px solid #dcdcdc; /* Tambah border atas */
+                flex-direction: column; /* Pastikan arahnya kolom */
+            }
+
+            /* Pindahkan blok total ke atas dengan properti order */
+            .app-sidebar .totals-card {
+                order: -1; /* Pindah ke paling atas di dalam sidebar */
+            }
+            
+            .table-container {
+                 padding: 10px;
+            }
+            
+            .modal-content {
+                width: 95%;
+            }
+        }
+
+    </style>
+
+    <script>
+        // Konfigurasi Google Sheets
+        const scriptURL = 'https://script.google.com/macros/s/AKfycby_SSbCQ5xiyRPXrMe2wEuf8nyXN23i-ZL0exIdQYjxLvnvt8MLxOAQxzSiamL9hH7zLA/exec';
+        
+        // Data fallback jika Google Sheets tidak dapat diakses
+        const fallbackData = [
+            { id: 1, name: "Rokok Online Krtk", sellPrice: 1200000, costPrice: 1000000, stock: 10, barcode: "8997014426586", info: "" },
+            { id: 2, name: "Rokok On Bold", sellPrice: 2300000, costPrice: 2100000, stock: 7, barcode: "8997014422563", info: "" },
+            { id: 3, name: "Rokok Samsoe", sellPrice: 2200000, costPrice: 2100000, stock: 8, barcode: "8999909029234", info: "" },
+            { id: 4, name: "Rokok Surya 12", sellPrice: 2700000, costPrice: 2600000, stock: 10, barcode: "8998899300261", info: "" },
+            { id: 5, name: "Rokok Surya 16", sellPrice: 3700000, costPrice: 3600000, stock: 10, barcode: "8998899110167", info: "" },
+            { id: 6, name: "Rokok Super", sellPrice: 2500000, costPrice: 2400000, stock: 10, barcode: "8991906101019", info: "" },
+            { id: 7, name: "Modem F460 + Adaptor", sellPrice: 110000, costPrice: 95000, stock: 50, barcode: "MDMF460", info: "" },
+            { id: 8, name: "Adaptor 12 Volt/1A", sellPrice: 20000, costPrice: 15000, stock: 100, barcode: "ADP12V1A", info: "" },
+            { id: 9, name: "Pigtel Fiber Optik 10pcs", sellPrice: 55000, costPrice: 45000, stock: 100, barcode: "PFCY123", info: "" }
+        ];
+
+        let itemsData = []; // Untuk menyimpan data barang
+        let useFallbackData = false; // Flag untuk menggunakan data fallback
+
+        // Elemen DOM
+        const tableBody = document.getElementById('table-body');
+        const itemForm = document.getElementById('item-form');
+        const itemModal = document.getElementById('item-modal');
+        const confirmModal = document.getElementById('confirm-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const searchInput = document.getElementById('search-input');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const addItemBtn = document.getElementById('add-item-btn');
+        
+        // Total elements
+        const totalSellElement = document.getElementById('total-sell');
+        const totalCostElement = document.getElementById('total-cost');
+        const totalItemsElement = document.getElementById('total-items');
+
+        // Event saat dokumen dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            loadItems();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Tombol tambah barang
+            addItemBtn.addEventListener('click', () => {
+                showModal(true);
+            });
+
+            // Form submit (tambah/edit barang)
+            itemForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveItem();
+            });
+
+            // Tombol refresh
+            refreshBtn.addEventListener('click', function() {
+                loadItems();
+            });
+
+            // Pencarian
+            searchInput.addEventListener('input', function() {
+                filterItems(this.value);
+            });
+
+            // Tombol tutup modal
+            document.querySelectorAll('.close, #cancel-btn, #cancel-delete').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    itemModal.style.display = 'none';
+                    confirmModal.style.display = 'none';
+                });
+            });
+
+            // Konfirmasi hapus
+            document.getElementById('confirm-delete').addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                deleteItem(id);
+            });
+        }
+
+        // Memuat data dari Google Sheets
+        function loadItems() {
+            showLoading();
+            
+            // Coba ambil data dari Google Sheets
+            fetch(scriptURL + '?action=read')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Jika data dari Google Sheets valid, gunakan data tersebut
+                    if (data && data.success && Array.isArray(data.data)) {
+                        itemsData = data.data;
+                        useFallbackData = false;
+                    } else {
+                        // Jika tidak, gunakan data fallback
+                        throw new Error('Invalid data format from Google Sheets');
+                    }
+                    renderItems(itemsData);
+                    calculateTotals(itemsData);
+                })
+                .catch(error => {
+                    console.error('Error fetching from Google Sheets:', error);
+                    // Gunakan data fallback
+                    itemsData = fallbackData;
+                    useFallbackData = true;
+                    renderItems(itemsData);
+                    calculateTotals(itemsData);
+                    
+                    // Tampilkan pesan warning
+                    showError('Menggunakan data lokal. Koneksi ke server terganggu.');
+                });
+        }
+
+        // Menampilkan loading indicator
+        function showLoading() {
+            tableBody.innerHTML = `
+                <tr class="loading-row">
+                    <td colspan="8">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Menampilkan pesan error
+        function showError(message) {
+            const errorRow = document.createElement('tr');
+            errorRow.className = 'error-row';
+            errorRow.innerHTML = `
+                <td colspan="8">
+                    <div>
+                        <i class="fas fa-exclamation-triangle"></i> ${message}
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(errorRow);
+            
+            // Sembunyikan pesan error setelah 5 detik
+            setTimeout(() => {
+                if (errorRow.parentNode) {
+                    errorRow.parentNode.removeChild(errorRow);
+                }
+            }, 5000);
+        }
+
+        // Render items ke tabel
+        function renderItems(items) {
+            if (items.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Tidak ada data barang.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            items.forEach(item => {
+                html += `
+                    <tr>
+                        <td>${item.id || ''}</td>
+                        <td>${item.name || ''}</td>
+                        <td>${formatCurrency(item.sellPrice || 0)}</td>
+                        <td>${formatCurrency(item.costPrice || 0)}</td>
+                        <td>${item.stock || 0}</td>
+                        <td>${item.barcode || ''}</td>
+                        <td>${item.info || ''}</td>
+                        <td>
+                            <div class="options-container">
+                                <button class="options-btn" data-id="${item.id}">...</button>
+                                <div class="options-menu">
+                                    <button onclick="editItem('${item.id}')">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button onclick="confirmDelete('${item.id}', '${item.name}')">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+            
+            // Setup options menu
+            document.querySelectorAll('.options-container').forEach(container => {
+                const btn = container.querySelector('.options-btn');
+                const menu = container.querySelector('.options-menu');
+                
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Sembunyikan semua menu lainnya
+                    document.querySelectorAll('.options-menu').forEach(m => {
+                        if (m !== menu) m.style.display = 'none';
+                    });
+                    // Toggle menu ini
+                    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+                });
+                
+                // Tutup menu saat klik di tempat lain
+                document.addEventListener('click', function() {
+                    menu.style.display = 'none';
+                });
+            });
+        }
+
+        // Filter items berdasarkan pencarian
+        function filterItems(keyword) {
+            if (!keyword) {
+                renderItems(itemsData);
+                calculateTotals(itemsData);
+                return;
+            }
+            
+            keyword = keyword.toLowerCase();
+            const filteredItems = itemsData.filter(item => 
+                item.name.toLowerCase().includes(keyword) || 
+                (item.barcode && item.barcode.toLowerCase().includes(keyword)) ||
+                (item.info && item.info.toLowerCase().includes(keyword))
+            );
+            
+            renderItems(filteredItems);
+            calculateTotals(filteredItems);
+        }
+
+        // Hitung total
+        function calculateTotals(items) {
+            let totalSell = 0;
+            let totalCost = 0;
+            
+            items.forEach(item => {
+                totalSell += (parseFloat(item.sellPrice) || 0) * (parseFloat(item.stock) || 0);
+                totalCost += (parseFloat(item.costPrice) || 0) * (parseFloat(item.stock) || 0);
+            });
+            
+            totalSellElement.textContent = formatCurrency(totalSell);
+            totalCostElement.textContent = formatCurrency(totalCost);
+            totalItemsElement.textContent = items.length;
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+
+        // Tampilkan modal untuk tambah/edit
+        function showModal(isNew = true, item = null) {
+            modalTitle.textContent = isNew ? 'Tambah Barang Baru' : 'Edit Barang';
+            itemForm.reset();
+            
+            if (!isNew && item) {
+                document.getElementById('item-id').value = item.id;
+                document.getElementById('item-name').value = item.name;
+                document.getElementById('item-sell-price').value = item.sellPrice;
+                document.getElementById('item-cost-price').value = item.costPrice;
+                document.getElementById('item-stock').value = item.stock;
+                document.getElementById('item-barcode').value = item.barcode || '';
+                document.getElementById('item-info').value = item.info || '';
+            }
+            
+            itemModal.style.display = 'flex';
+        }
+
+        // Edit item
+        function editItem(id) {
+            const item = itemsData.find(item => item.id == id);
+            if (item) {
+                showModal(false, item);
+            }
+        }
+
+        // Simpan item (create atau update)
+        function saveItem() {
+            if (useFallbackData) {
+                alert('Tidak dapat menyimpan data. Sedang menggunakan data lokal. Periksa koneksi internet Anda.');
+                return;
+            }
+            
+            const formData = new FormData();
+            const id = document.getElementById('item-id').value;
+            const isNew = !id;
+            
+            formData.append('action', isNew ? 'create' : 'update');
+            formData.append('id', id);
+            formData.append('name', document.getElementById('item-name').value);
+            formData.append('sellPrice', document.getElementById('item-sell-price').value);
+            formData.append('costPrice', document.getElementById('item-cost-price').value);
+            formData.append('stock', document.getElementById('item-stock').value);
+            formData.append('barcode', document.getElementById('item-barcode').value);
+            formData.append('info', document.getElementById('item-info').value);
+            
+            // Tampilkan loading
+            const submitBtn = itemForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+            submitBtn.disabled = true;
+            
+            fetch(scriptURL, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    itemModal.style.display = 'none';
+                    loadItems(); // Reload data
+                    alert(isNew ? 'Barang berhasil ditambahkan!' : 'Barang berhasil diperbarui!');
+                } else {
+                    alert('Terjadi kesalahan: ' + (data.message || 'Tidak diketahui'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat menyimpan data. Pastikan koneksi internet Anda stabil.');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+
+        // Konfirmasi hapus
+        function confirmDelete(id, name) {
+            if (useFallbackData) {
+                alert('Tidak dapat menghapus data. Sedang menggunakan data lokal.');
+                return;
+            }
+            
+            document.getElementById('item-to-delete').textContent = name;
+            document.getElementById('confirm-delete').setAttribute('data-id', id);
+            confirmModal.style.display = 'flex';
+        }
+
+        // Hapus item
+        function deleteItem(id) {
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', id);
+            
+            // Tampilkan loading
+            const deleteBtn = document.getElementById('confirm-delete');
+            const originalText = deleteBtn.innerHTML;
+            deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
+            deleteBtn.disabled = true;
+            
+            fetch(scriptURL, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    confirmModal.style.display = 'none';
+                    loadItems(); // Reload data
+                    alert('Barang berhasil dihapus!');
+                } else {
+                    alert('Terjadi kesalahan: ' + (data.message || 'Tidak diketahui'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat menghapus data. Pastikan koneksi internet Anda stabil.');
+            })
+            .finally(() => {
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+            });
+        }
+
+    </script>
+
+</body>
+</html>
